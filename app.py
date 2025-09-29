@@ -1,0 +1,146 @@
+import logging
+
+from flask import Flask, Response, jsonify, request
+from flask_cors import CORS
+
+from database import (
+    get_all_duties,
+    get_office_members,
+    mark_duty_completed,
+    mark_duty_uncompleted,
+)
+
+app = Flask(__name__)
+CORS(app)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@app.route("/api/duties", methods=["GET"])
+def get_duties() -> tuple[Response, int]:
+    """
+    Get all duties from the database
+    """
+    try:
+        limit = request.args.get("limit", 100, type=int)
+
+        duties = get_all_duties(limit=limit)
+
+        return jsonify({"duties": [duty.model_dump() for duty in duties], "total": len(duties)}), 200
+
+    except Exception as e:
+        logger.error(f"Error in get_duties endpoint: {e}")
+        return jsonify({"error": "Failed to retrieve duties"}), 500
+
+
+@app.route("/api/duties/complete", methods=["POST"])
+def complete_duty() -> tuple[Response, int]:
+    """
+    Mark a duty as completed
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        duty_id = data.get("duty_id")
+        duty_type = data.get("duty_type")
+
+        if not duty_id or not duty_type:
+            return jsonify({"error": "duty_id and duty_type are required"}), 400
+
+        if duty_type not in ["coffee", "fridge"]:
+            return jsonify({"error": "duty_type must be 'coffee' or 'fridge'"}), 400
+
+        success = mark_duty_completed(duty_id, duty_type)
+
+        if success:
+            # Get updated duty list to return
+            duties = get_all_duties(limit=50)
+            return jsonify(
+                {
+                    "message": "Duty marked as completed successfully",
+                    "success": True,
+                    "duties": [duty.model_dump() for duty in duties],
+                }
+            ), 200
+        else:
+            return jsonify({"error": "Failed to mark duty as completed"}), 500
+
+    except Exception as e:
+        logger.error(f"Error in complete_duty endpoint: {e}")
+        return jsonify({"error": "Failed to complete duty"}), 500
+
+
+@app.route("/api/duties/uncomplete", methods=["POST"])
+def uncomplete_duty() -> tuple[Response, int]:
+    """
+    Mark a duty as uncompleted
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        duty_id = data.get("duty_id")
+        duty_type = data.get("duty_type")
+
+        if not duty_id or not duty_type:
+            return jsonify({"error": "duty_id and duty_type are required"}), 400
+
+        if duty_type not in ["coffee", "fridge"]:
+            return jsonify({"error": "duty_type must be 'coffee' or 'fridge'"}), 400
+
+        success = mark_duty_uncompleted(duty_id, duty_type)
+
+        if success:
+            # Get updated duty list to return
+            duties = get_all_duties(limit=50)
+            return jsonify(
+                {
+                    "message": "Duty marked as uncompleted successfully",
+                    "success": True,
+                    "duties": [duty.model_dump() for duty in duties],  # Return updated list for immediate UI update
+                }
+            ), 200
+        else:
+            return jsonify({"error": "Failed to mark duty as uncompleted"}), 500
+
+    except Exception as e:
+        logger.error(f"Error in uncomplete_duty endpoint: {e}")
+        return jsonify({"error": "Failed to uncomplete duty"}), 500
+
+
+@app.route("/api/members", methods=["GET"])
+def get_members() -> tuple[Response, int]:
+    """
+    Get all office members.
+
+    Note: endpoint currently unused by the frontend.
+    """
+    try:
+        members_list = get_office_members()
+        members = [
+            {
+                "id": member.id,
+                "username": member.username,
+                "full_name": member.full_name,
+                "coffee_drinker": member.coffee_drinker,
+            }
+            for member in members_list
+        ]
+        return jsonify({"members": members}), 200
+
+    except Exception as e:
+        logger.error(f"Error in get_members endpoint: {e}")
+        return jsonify({"error": "Failed to retrieve members"}), 500
+
+
+if __name__ == "__main__":
+    import os
+
+    port = int(os.environ.get("PORT", 4999))
+    app.run(debug=False, host="0.0.0.0", port=port)

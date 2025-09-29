@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[codz]
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+bin/
+include/
+lib/
+lib64/
+share/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+*.DS_Store
+._*
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation
+*.md
+docs/
+*.rst
+
+# Other
+.dockerignore
+Dockerfile
+docker-compose*.yml
