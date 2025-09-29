@@ -1,21 +1,40 @@
-import os
+import logging
 
+import requests
 from google.cloud import secretmanager
 
-# Get project ID from environment variables (automatically set in Cloud Run)
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
+logger = logging.getLogger(__name__)
+
+
+def get_project_id() -> str | None:
+    """
+    Get the Google Cloud project ID.
+    """
+    try:
+        metadata_url = "http://metadata.google.internal/computeMetadata/v1/project/project-id"
+        headers = {"Metadata-Flavor": "Google"}
+        response = requests.get(metadata_url, headers=headers, timeout=5)
+        if response.status_code != 200:
+            logger.info(f"Failed to get project ID from Google's metadata service, response: {response}")
+            return None
+
+        project_id = response.text
+        assert isinstance(project_id, str)
+        return project_id
+
+    except Exception:
+        logger.error("Failed to get project ID from Google's metadata service", exc_info=True)
+        return None
 
 
 def get_secret(token_name: str) -> str:
     """
     Gets the secret from Google Secret Manager
-    :param token_name: str with name of the token in GSM
-    :return: secret: str unhashed version of the secret
     """
     client = secretmanager.SecretManagerServiceClient()
-
-    assert PROJECT_ID, "Project ID not set in environment variables"
-    name = f"projects/{PROJECT_ID}/secrets/{token_name}/versions/latest"
+    project_id = get_project_id()
+    assert project_id, "Project ID not set in environment variables"
+    name = f"projects/{project_id}/secrets/{token_name}/versions/latest"
     response = client.access_secret_version(name=name)
     secret = response.payload.data.decode("UTF-8")
 
