@@ -20,8 +20,20 @@ Mark a duty as uncompleted
 - **Returns**: Updated duties list
 
 ### GET /api/members
-Get all office members (currently unused by frontend)
+Get all office members
 - **Response**: List of office members
+
+### POST /api/members
+Add a new office members
+- **Response**: Updated list of office members
+
+### DELETE /api/members
+Deactivate an office member
+- **Response**: Updated list of (active) office members
+
+### PUT /api/members
+Update an office member
+- **Response**: Update list of office members
 
 ## Project Structure
 
