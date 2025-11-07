@@ -129,20 +129,18 @@ def add_office_member(payload: ReducedOfficeMember) -> bool:
 
             return True
         except IntegrityError:
-            logger.info(
-                f"Member with username '{payload.username}' already exists, updating that instead"
-            )
+            logger.info(f"Member with username '{payload.username}' already exists")
             session.rollback()
             existing_member = (
                 session.query(MemberTable).filter(MemberTable.username == payload.username).first()
             )
-            if existing_member:
+            if existing_member and existing_member.active == False:
                 existing_member.active = True  # type: ignore[assignment]
                 existing_member.full_name = payload.full_name  # type: ignore[assignment]
                 existing_member.coffee_drinker = payload.coffee_drinker  # type: ignore[assignment]
                 return True
             else:
-                logger.warning(f"Couldn't add or update user with username '{payload.username}'")
+                logger.warning(f"Member with username '{payload.username}' already exists")
                 return False
 
 
