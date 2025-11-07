@@ -2,6 +2,7 @@ import logging
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+from pydantic import ValidationError
 
 from database import (
     get_all_duties,
@@ -9,6 +10,7 @@ from database import (
     mark_duty_completed,
     mark_duty_uncompleted,
 )
+from models import DutyCompletionPayload
 
 app = Flask(__name__)
 CORS(app)
@@ -45,16 +47,12 @@ def complete_duty() -> tuple[Response, int]:
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        duty_id = data.get("duty_id")
-        duty_type = data.get("duty_type")
+        try:
+            payload = DutyCompletionPayload.model_validate(data)
+        except ValidationError as e:
+            return jsonify({"error": f"Problem validating payload: {e}"}), 400
 
-        if not duty_id or not duty_type:
-            return jsonify({"error": "duty_id and duty_type are required"}), 400
-
-        if duty_type not in ["coffee", "fridge"]:
-            return jsonify({"error": "duty_type must be 'coffee' or 'fridge'"}), 400
-
-        success = mark_duty_completed(duty_id, duty_type)
+        success = mark_duty_completed(payload.duty_id, payload.duty_type)
 
         if success:
             # Get updated duty list to return
@@ -85,16 +83,12 @@ def uncomplete_duty() -> tuple[Response, int]:
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        duty_id = data.get("duty_id")
-        duty_type = data.get("duty_type")
+        try:
+            payload = DutyCompletionPayload.model_validate(data)
+        except ValidationError as e:
+            return jsonify({"error": f"Problem validating payload: {e}"}), 400
 
-        if not duty_id or not duty_type:
-            return jsonify({"error": "duty_id and duty_type are required"}), 400
-
-        if duty_type not in ["coffee", "fridge"]:
-            return jsonify({"error": "duty_type must be 'coffee' or 'fridge'"}), 400
-
-        success = mark_duty_uncompleted(duty_id, duty_type)
+        success = mark_duty_uncompleted(payload.duty_id, payload.duty_type)
 
         if success:
             # Get updated duty list to return
@@ -118,20 +112,10 @@ def uncomplete_duty() -> tuple[Response, int]:
 def get_members() -> tuple[Response, int]:
     """
     Get all office members.
-
-    Note: endpoint currently unused by the frontend.
     """
     try:
         members_list = get_office_members()
-        members = [
-            {
-                "id": member.id,
-                "username": member.username,
-                "full_name": member.full_name,
-                "coffee_drinker": member.coffee_drinker,
-            }
-            for member in members_list
-        ]
+        members = [member.model_dump() for member in members_list]
         return jsonify({"members": members}), 200
 
     except Exception as e:
