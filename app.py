@@ -32,7 +32,9 @@ def get_duties() -> tuple[Response, int]:
 
         duties = get_all_duties(limit=limit)
 
-        return jsonify({"duties": [duty.model_dump() for duty in duties], "total": len(duties)}), 200
+        return jsonify(
+            {"duties": [duty.model_dump() for duty in duties], "total": len(duties)}
+        ), 200
 
     except Exception as e:
         logger.error(f"Error in get_duties endpoint: {e}")
@@ -100,7 +102,7 @@ def uncomplete_duty() -> tuple[Response, int]:
                 {
                     "message": "Duty marked as uncompleted successfully",
                     "success": True,
-                    "duties": [duty.model_dump() for duty in duties],  # Return updated list for immediate UI update
+                    "duties": [duty.model_dump() for duty in duties],
                 }
             ), 200
         else:

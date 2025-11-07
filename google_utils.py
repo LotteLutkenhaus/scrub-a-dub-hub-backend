@@ -15,7 +15,9 @@ def get_project_id() -> str | None:
         headers = {"Metadata-Flavor": "Google"}
         response = requests.get(metadata_url, headers=headers, timeout=5)
         if response.status_code != 200:
-            logger.info(f"Failed to get project ID from Google's metadata service, response: {response}")
+            logger.info(
+                f"Failed to get project ID from Google's metadata service, response: {response}"
+            )
             return None
 
         project_id = response.text
