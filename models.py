@@ -31,3 +31,9 @@ class DutyResponse(BaseModel):
 class DutyCompletionPayload(BaseModel):
     duty_id: str
     duty_type: DutyType
+
+
+class OfficeMemberPayload(BaseModel):
+    username: str
+    full_name: str
+    coffee_drinker: bool
