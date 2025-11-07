@@ -11,8 +11,9 @@ from database import (
     get_all_duties,
     mark_duty_completed,
     mark_duty_uncompleted,
+    update_office_member,
 )
-from models import DutyCompletionPayload, OfficeMemberPayload
+from models import DutyCompletionPayload, OfficeMember, ReducedOfficeMember
 
 app = Flask(__name__)
 CORS(app)
@@ -31,7 +32,9 @@ def get_duties() -> tuple[Response, int]:
 
         duties = get_all_duties(limit=limit)
 
-        return jsonify({"duties": [duty.model_dump() for duty in duties], "total": len(duties)}), 200
+        return jsonify(
+            {"duties": [duty.model_dump() for duty in duties], "total": len(duties)}
+        ), 200
 
     except Exception as e:
         logger.error(f"Error in get_duties endpoint: {e}")
@@ -99,7 +102,7 @@ def uncomplete_duty() -> tuple[Response, int]:
                 {
                     "message": "Duty marked as uncompleted successfully",
                     "success": True,
-                    "duties": [duty.model_dump() for duty in duties],  # Return updated list for immediate UI update
+                    "duties": [duty.model_dump() for duty in duties],
                 }
             ), 200
         else:
@@ -137,7 +140,7 @@ def add_member() -> tuple[Response, int]:
             return jsonify({"error": "No member data provided"}), 400
 
         try:
-            parsed_payload = OfficeMemberPayload.model_validate(data)
+            parsed_payload = ReducedOfficeMember.model_validate(data)
         except ValidationError as e:
             return jsonify({"error": f"Problem validating payload: {e}"}), 400
 
@@ -192,8 +195,40 @@ def deactivate_member() -> tuple[Response, int]:
             return jsonify({"error": "Failed to deactivate member"}), 500
 
     except Exception as e:
-        logger.error(f"Error in add_member endpoint: {e}")
-        return jsonify({"error": "Failed to add new member"}), 500
+        logger.error(f"Error in deactivate_member endpoint: {e}")
+        return jsonify({"error": "Failed to deactivate member"}), 500
+
+
+@app.route("/api/members", methods=["PUT"])
+def update_member() -> tuple[Response, int]:
+    """
+    Update an office member.
+    """
+    try:
+        data = request.get_json()
+
+        try:
+            parsed_payload = OfficeMember.model_validate(data)
+        except ValidationError as e:
+            return jsonify({"error": f"Problem validating payload: {e}"}), 400
+
+        success = update_office_member(parsed_payload)
+
+        if success:
+            members_list = get_active_office_members()
+            return jsonify(
+                {
+                    "message": "Updated office member",
+                    "success": True,
+                    "members": [member.model_dump() for member in members_list],
+                }
+            ), 200
+        else:
+            return jsonify({"error": "Failed to update member"}), 500
+
+    except Exception as e:
+        logger.error(f"Error in update_member endpoint: {e}")
+        return jsonify({"error": "Failed to update a member"}), 500
 
 
 if __name__ == "__main__":

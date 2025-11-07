@@ -8,32 +8,7 @@ class DutyType(StrEnum):
     FRIDGE = "fridge"
 
 
-class OfficeMember(BaseModel):
-    id: int
-    username: str
-    full_name: str | None = None
-    coffee_drinker: bool = True
-    active: bool = True
-
-
-class DutyResponse(BaseModel):
-    duty_id: str
-    duty_type: DutyType
-    user_id: str
-    username: str
-    name: str
-    selection_timestamp: str
-    cycle_id: int
-    completed: bool
-    completed_timestamp: str | None = None
-
-
-class DutyCompletionPayload(BaseModel):
-    duty_id: str
-    duty_type: DutyType
-
-
-class OfficeMemberPayload(BaseModel):
+class ReducedOfficeMember(BaseModel):
     username: str = Field(min_length=1, max_length=50)
     full_name: str = Field(min_length=1, max_length=100)
     coffee_drinker: bool
@@ -53,3 +28,25 @@ class OfficeMemberPayload(BaseModel):
     @field_validator("full_name")
     def capitalize_name(cls, value: str) -> str:
         return value.capitalize()
+
+
+class OfficeMember(ReducedOfficeMember):
+    id: int
+    active: bool = True
+
+
+class DutyResponse(BaseModel):
+    duty_id: str
+    duty_type: DutyType
+    user_id: str
+    username: str
+    name: str
+    selection_timestamp: str
+    cycle_id: int
+    completed: bool
+    completed_timestamp: str | None = None
+
+
+class DutyCompletionPayload(BaseModel):
+    duty_id: str
+    duty_type: DutyType

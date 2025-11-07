@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import func
 
 from google_utils import get_secret
-from models import DutyResponse, DutyType, OfficeMember, OfficeMemberPayload
+from models import DutyResponse, DutyType, OfficeMember, ReducedOfficeMember
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +110,12 @@ def get_active_office_members(coffee_drinkers_only: bool = False) -> list[Office
         return [OfficeMember.model_validate(member.__dict__) for member in members]
 
 
-def add_office_member(payload: OfficeMemberPayload) -> bool:
+def add_office_member(payload: ReducedOfficeMember) -> bool:
     """
     Add an office member to the database
     """
-    # TODO: add support for the case a deactivated member gets reactivated
-    try:
-        with get_db_session() as session:
+    with get_db_session() as session:
+        try:
             new_member = MemberTable(
                 username=payload.username,
                 full_name=payload.full_name,
@@ -129,30 +128,70 @@ def add_office_member(payload: OfficeMemberPayload) -> bool:
             logger.info(f"Added new office member: {payload.username} (ID: {new_member.id})")
 
             return True
-    except IntegrityError:
-        logger.warning(f"Member with username '{payload.username}' already exists")
-        return False
+        except IntegrityError:
+            logger.info(f"Member with username '{payload.username}' already exists")
+            session.rollback()
+            existing_member = (
+                session.query(MemberTable).filter(MemberTable.username == payload.username).first()
+            )
+            if existing_member and existing_member.active == False:
+                existing_member.active = True  # type: ignore[assignment]
+                existing_member.full_name = payload.full_name  # type: ignore[assignment]
+                existing_member.coffee_drinker = payload.coffee_drinker  # type: ignore[assignment]
+                return True
+            else:
+                logger.warning(f"Member with username '{payload.username}' already exists")
+                return False
 
 
-def deactivate_office_member(id: int) -> bool:
+def deactivate_office_member(id_: int) -> bool:
     """
     Deactivate an office member
     """
     with get_db_session() as session:
-        member = session.query(MemberTable).filter(MemberTable.id == id).first()
+        member = session.query(MemberTable).filter(MemberTable.id == id_).first()
 
         if not member:
-            logger.warning(f"No member found with ID {id}")
+            logger.warning(f"No member found with ID {id_}")
             return False
 
         if not member.active:
-            logger.warning(f"Member {id} is already inactive")
+            logger.warning(f"Member {id_} is already inactive")
             return False
 
         member.active = False  # type: ignore[assignment]
-        logger.info(f"Deactivated office member: {member.username} (ID: {id})")
+        logger.info(f"Deactivated office member: {member.username} (ID: {id_})")
 
         return True
+
+
+def update_office_member(office_member: OfficeMember) -> bool:
+    """
+    Update the data for an existing office member
+    """
+    try:
+        with get_db_session() as session:
+            member = session.query(MemberTable).filter(MemberTable.id == office_member.id).first()
+
+            if not member:
+                logger.warning(f"No member found with ID {office_member.id}")
+                return False
+
+            # Update fields
+            member.username = office_member.username  # type: ignore[assignment]
+            member.full_name = office_member.full_name  # type: ignore[assignment]
+            member.coffee_drinker = office_member.coffee_drinker  # type: ignore[assignment]
+            member.active = office_member.active  # type: ignore[assignment]
+
+            logger.info(f"Updated office member: {office_member.username} (ID: {office_member.id})")
+
+            return True
+    except IntegrityError:
+        logger.warning(
+            f"Cannot update member {office_member.id}: username '{office_member.username}' already "
+            f"exists"
+        )
+        return False
 
 
 def get_all_duties(limit: int = 100) -> list[DutyResponse]:
@@ -179,7 +218,9 @@ def get_all_duties(limit: int = 100) -> list[DutyResponse]:
                 selection_timestamp=assignment.assigned_at.isoformat(),
                 cycle_id=assignment.cycle_id,
                 completed=assignment.completed,
-                completed_timestamp=assignment.completed_at.isoformat() if assignment.completed_at else None,
+                completed_timestamp=assignment.completed_at.isoformat()
+                if assignment.completed_at
+                else None,
             )
             results.append(duty_response)
 
