@@ -6,8 +6,9 @@ from pydantic import ValidationError
 
 from database import (
     add_office_member,
+    deactivate_office_member,
+    get_active_office_members,
     get_all_duties,
-    get_office_members,
     mark_duty_completed,
     mark_duty_uncompleted,
 )
@@ -115,7 +116,7 @@ def get_members() -> tuple[Response, int]:
     Get all office members.
     """
     try:
-        members_list = get_office_members()
+        members_list = get_active_office_members()
         members = [member.model_dump() for member in members_list]
         return jsonify({"members": members}), 200
 
@@ -144,7 +145,7 @@ def add_member() -> tuple[Response, int]:
 
         if success:
             # Get updated member list to return
-            members_list = get_office_members()
+            members_list = get_active_office_members()
             return jsonify(
                 {
                     "message": "New member added to the office",
@@ -154,6 +155,41 @@ def add_member() -> tuple[Response, int]:
             ), 200
         else:
             return jsonify({"error": f"Username '{parsed_payload.username}' already exists"}), 409
+
+    except Exception as e:
+        logger.error(f"Error in add_member endpoint: {e}")
+        return jsonify({"error": "Failed to add new member"}), 500
+
+
+@app.route("/api/members", methods=["DELETE"])
+def deactivate_member() -> tuple[Response, int]:
+    """
+    Deactivate an office member.
+
+    We won't delete them as we need the info for the historic overview of duties.
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No member data provided"}), 400
+
+        if (member_id := data.get("id")) is None:
+            return jsonify({"error": "No member id provided"}), 400
+
+        success = deactivate_office_member(member_id)
+
+        if success:
+            members_list = get_active_office_members()
+            return jsonify(
+                {
+                    "message": "Deactivated office member",
+                    "success": True,
+                    "members": [member.model_dump() for member in members_list],
+                }
+            ), 200
+        else:
+            return jsonify({"error": "Failed to deactivate member"}), 500
 
     except Exception as e:
         logger.error(f"Error in add_member endpoint: {e}")

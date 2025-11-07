@@ -95,7 +95,7 @@ def get_db_session() -> Generator[Session, Any, None]:
         session.close()
 
 
-def get_office_members(coffee_drinkers_only: bool = False) -> list[OfficeMember]:
+def get_active_office_members(coffee_drinkers_only: bool = False) -> list[OfficeMember]:
     """
     Fetch office members from database.
     """
@@ -131,6 +131,27 @@ def add_office_member(payload: OfficeMemberPayload) -> bool:
     except IntegrityError:
         logger.warning(f"Member with username '{payload.username}' already exists")
         return False
+
+
+def deactivate_office_member(id: int) -> bool:
+    """
+    Deactivate an office member
+    """
+    with get_db_session() as session:
+        member = session.query(MemberTable).filter(MemberTable.id == id).first()
+
+        if not member:
+            logger.warning(f"No member found with ID {id}")
+            return False
+
+        if not member.active:
+            logger.warning(f"Member {id} is already inactive")
+            return False
+
+        member.active = False  # type: ignore[assignment]
+        logger.info(f"Deactivated office member: {member.username} (ID: {id})")
+
+        return True
 
 
 def get_all_duties(limit: int = 100) -> list[DutyResponse]:
