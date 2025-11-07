@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import func
 
 from google_utils import get_secret
-from models import DutyResponse, OfficeMember
+from models import DutyResponse, DutyType, OfficeMember
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ def get_all_duties(limit: int = 100) -> list[DutyResponse]:
         for assignment, username, full_name in query:
             duty_response = DutyResponse(
                 duty_id=str(assignment.id),
-                duty_type=assignment.duty_type,
+                duty_type=DutyType(assignment.duty_type),
                 user_id=str(assignment.member_id),
                 username=username,
                 name=full_name or username,

@@ -18,7 +18,7 @@ class OfficeMember(BaseModel):
 
 class DutyResponse(BaseModel):
     duty_id: str
-    duty_type: str
+    duty_type: DutyType
     user_id: str
     username: str
     name: str
@@ -26,3 +26,8 @@ class DutyResponse(BaseModel):
     cycle_id: int
     completed: bool
     completed_timestamp: str | None = None
+
+
+class DutyCompletionPayload(BaseModel):
+    duty_id: str
+    duty_type: DutyType
