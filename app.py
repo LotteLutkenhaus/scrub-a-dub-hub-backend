@@ -5,12 +5,13 @@ from flask_cors import CORS
 from pydantic import ValidationError
 
 from database import (
+    add_office_member,
     get_all_duties,
     get_office_members,
     mark_duty_completed,
     mark_duty_uncompleted,
 )
-from models import DutyCompletionPayload
+from models import DutyCompletionPayload, OfficeMemberPayload
 
 app = Flask(__name__)
 CORS(app)
@@ -121,6 +122,42 @@ def get_members() -> tuple[Response, int]:
     except Exception as e:
         logger.error(f"Error in get_members endpoint: {e}")
         return jsonify({"error": "Failed to retrieve members"}), 500
+
+
+@app.route("/api/members", methods=["POST"])
+def add_member() -> tuple[Response, int]:
+    """
+    Add a member to the office
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No member data provided"}), 400
+
+        try:
+            parsed_payload = OfficeMemberPayload.model_validate(data)
+        except ValidationError as e:
+            return jsonify({"error": f"Problem validating payload: {e}"}), 400
+
+        success = add_office_member(parsed_payload)
+
+        if success:
+            # Get updated member list to return
+            members_list = get_office_members()
+            return jsonify(
+                {
+                    "message": "New member added to the office",
+                    "success": True,
+                    "members": [member.model_dump() for member in members_list],
+                }
+            ), 200
+        else:
+            return jsonify({"error": f"Username '{parsed_payload.username}' already exists"}), 409
+
+    except Exception as e:
+        logger.error(f"Error in add_member endpoint: {e}")
+        return jsonify({"error": "Failed to add new member"}), 500
 
 
 if __name__ == "__main__":

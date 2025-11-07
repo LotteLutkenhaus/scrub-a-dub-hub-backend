@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class DutyType(StrEnum):
@@ -31,3 +31,25 @@ class DutyResponse(BaseModel):
 class DutyCompletionPayload(BaseModel):
     duty_id: str
     duty_type: DutyType
+
+
+class OfficeMemberPayload(BaseModel):
+    username: str = Field(min_length=1, max_length=50)
+    full_name: str = Field(min_length=1, max_length=100)
+    coffee_drinker: bool
+
+    @field_validator("username")
+    def cleanup_username(cls, value: str) -> str:
+        """
+        Lowercase, and remove the `@` in case a user enters this for `username`.
+        """
+        value = value.lower()
+
+        if value.startswith("@"):
+            return value[1:]
+
+        return value
+
+    @field_validator("full_name")
+    def capitalize_name(cls, value: str) -> str:
+        return value.capitalize()
