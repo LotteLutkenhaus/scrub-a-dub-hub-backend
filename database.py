@@ -114,6 +114,7 @@ def add_office_member(payload: OfficeMemberPayload) -> bool:
     """
     Add an office member to the database
     """
+    # TODO: add support for the case a deactivated member gets reactivated
     try:
         with get_db_session() as session:
             new_member = MemberTable(
