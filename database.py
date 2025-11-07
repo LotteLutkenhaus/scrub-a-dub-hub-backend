@@ -129,9 +129,13 @@ def add_office_member(payload: ReducedOfficeMember) -> bool:
 
             return True
         except IntegrityError:
-            logger.info(f"Member with username '{payload.username}' already exists, updating that instead")
+            logger.info(
+                f"Member with username '{payload.username}' already exists, updating that instead"
+            )
             session.rollback()
-            existing_member = session.query(MemberTable).filter(MemberTable.username == payload.username).first()
+            existing_member = (
+                session.query(MemberTable).filter(MemberTable.username == payload.username).first()
+            )
             if existing_member:
                 existing_member.active = True  # type: ignore[assignment]
                 existing_member.full_name = payload.full_name  # type: ignore[assignment]
@@ -185,7 +189,10 @@ def update_office_member(office_member: OfficeMember) -> bool:
 
             return True
     except IntegrityError:
-        logger.warning(f"Cannot update member {office_member.id}: username '{office_member.username}' already exists")
+        logger.warning(
+            f"Cannot update member {office_member.id}: username '{office_member.username}' already "
+            f"exists"
+        )
         return False
 
 
@@ -213,7 +220,9 @@ def get_all_duties(limit: int = 100) -> list[DutyResponse]:
                 selection_timestamp=assignment.assigned_at.isoformat(),
                 cycle_id=assignment.cycle_id,
                 completed=assignment.completed,
-                completed_timestamp=assignment.completed_at.isoformat() if assignment.completed_at else None,
+                completed_timestamp=assignment.completed_at.isoformat()
+                if assignment.completed_at
+                else None,
             )
             results.append(duty_response)
 
