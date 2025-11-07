@@ -15,6 +15,7 @@ from sqlalchemy import (
     create_engine,
     desc,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import func
@@ -113,19 +114,23 @@ def add_office_member(payload: OfficeMemberPayload) -> bool:
     """
     Add an office member to the database
     """
-    with get_db_session() as session:
-        new_member = MemberTable(
-            username=payload.username,
-            full_name=payload.full_name,
-            coffee_drinker=payload.coffee_drinker,
-            active=True,
-        )
-        session.add(new_member)
-        session.flush()  # Get the auto-generated ID
+    try:
+        with get_db_session() as session:
+            new_member = MemberTable(
+                username=payload.username,
+                full_name=payload.full_name,
+                coffee_drinker=payload.coffee_drinker,
+                active=True,
+            )
+            session.add(new_member)
+            session.flush()  # Get the auto-generated ID
 
-        logger.info(f"Added new office member: {payload.username} (ID: {new_member.id})")
+            logger.info(f"Added new office member: {payload.username} (ID: {new_member.id})")
 
-        return True
+            return True
+    except IntegrityError:
+        logger.warning(f"Member with username '{payload.username}' already exists")
+        return False
 
 
 def get_all_duties(limit: int = 100) -> list[DutyResponse]:

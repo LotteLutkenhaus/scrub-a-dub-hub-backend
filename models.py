@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class DutyType(StrEnum):
@@ -34,8 +34,8 @@ class DutyCompletionPayload(BaseModel):
 
 
 class OfficeMemberPayload(BaseModel):
-    username: str
-    full_name: str
+    username: str = Field(min_length=1, max_length=50)
+    full_name: str = Field(min_length=1, max_length=100)
     coffee_drinker: bool
 
     @field_validator("username")

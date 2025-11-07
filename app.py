@@ -153,7 +153,7 @@ def add_member() -> tuple[Response, int]:
                 }
             ), 200
         else:
-            return jsonify({"error": "Failed to add new member to the office"}), 500
+            return jsonify({"error": f"Username '{parsed_payload.username}' already exists"}), 409
 
     except Exception as e:
         logger.error(f"Error in add_member endpoint: {e}")
