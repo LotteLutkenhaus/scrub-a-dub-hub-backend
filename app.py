@@ -150,7 +150,6 @@ def add_member() -> tuple[Response, int]:
                     "message": "New member added to the office",
                     "success": True,
                     "members": [member.model_dump() for member in members_list],
-                    # Return updated list for immediate UI update
                 }
             ), 200
         else:
