@@ -114,8 +114,8 @@ def add_office_member(payload: ReducedOfficeMember) -> bool:
     """
     Add an office member to the database
     """
-    try:
-        with get_db_session() as session:
+    with get_db_session() as session:
+        try:
             new_member = MemberTable(
                 username=payload.username,
                 full_name=payload.full_name,
@@ -128,17 +128,18 @@ def add_office_member(payload: ReducedOfficeMember) -> bool:
             logger.info(f"Added new office member: {payload.username} (ID: {new_member.id})")
 
             return True
-    except IntegrityError:
-        logger.info(f"Member with username '{payload.username}' already exists, updating that instead")
-        existing_member = session.query(MemberTable).filter(MemberTable.username == payload.username).first()
-        if existing_member:
-            existing_member.active = True  # type: ignore[assignment]
-            existing_member.full_name = payload.full_name  # type: ignore[assignment]
-            existing_member.coffee_drinker = payload.coffee_drinker  # type: ignore[assignment]
-            return True
-        else:
-            logger.warning(f"Couldn't add or update user with username '{payload.username}'")
-            return False
+        except IntegrityError:
+            logger.info(f"Member with username '{payload.username}' already exists, updating that instead")
+            session.rollback()
+            existing_member = session.query(MemberTable).filter(MemberTable.username == payload.username).first()
+            if existing_member:
+                existing_member.active = True  # type: ignore[assignment]
+                existing_member.full_name = payload.full_name  # type: ignore[assignment]
+                existing_member.coffee_drinker = payload.coffee_drinker  # type: ignore[assignment]
+                return True
+            else:
+                logger.warning(f"Couldn't add or update user with username '{payload.username}'")
+                return False
 
 
 def deactivate_office_member(id_: int) -> bool:
