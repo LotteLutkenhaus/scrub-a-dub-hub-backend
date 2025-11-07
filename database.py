@@ -114,7 +114,6 @@ def add_office_member(payload: ReducedOfficeMember) -> bool:
     """
     Add an office member to the database
     """
-    # TODO: add support for the case a deactivated member gets reactivated
     try:
         with get_db_session() as session:
             new_member = MemberTable(
@@ -130,8 +129,16 @@ def add_office_member(payload: ReducedOfficeMember) -> bool:
 
             return True
     except IntegrityError:
-        logger.warning(f"Member with username '{payload.username}' already exists")
-        return False
+        logger.info(f"Member with username '{payload.username}' already exists, updating that instead")
+        existing_member = session.query(MemberTable).filter(MemberTable.username == payload.username).first()
+        if existing_member:
+            existing_member.active = True  # type: ignore[assignment]
+            existing_member.full_name = payload.full_name  # type: ignore[assignment]
+            existing_member.coffee_drinker = payload.coffee_drinker  # type: ignore[assignment]
+            return True
+        else:
+            logger.warning(f"Couldn't add or update user with username '{payload.username}'")
+            return False
 
 
 def deactivate_office_member(id_: int) -> bool:
