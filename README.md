@@ -19,6 +19,15 @@ Mark a duty as uncompleted
 - **Body**: `{"duty_id": "123", "duty_type": "fridge"}`
 - **Returns**: Updated duties list
 
+### GET /api/duties/recent
+Get the most recent duty for a specific duty type (cached)
+- **Query Parameters**: `duty_type` (required, either "coffee" or "fridge")
+- **Response**: Most recent duty for the specified type
+- **Cache Behavior**:
+  - Results are cached in Redis for 1 hour
+  - Cache is automatically invalidated when duties are completed/uncompleted
+  - Response includes `"source": "cache"` or `"source": "database"`
+
 ### GET /api/members
 Get all office members
 - **Response**: List of office members
@@ -42,6 +51,7 @@ Update an office member
 ├── database.py             # Database models and operations
 ├── models.py               # Pydantic models for data validation
 ├── google_utils.py         # Google Secret Manager utilities
+├── upstash_utils.py        # Redis caching via Upstash REST API
 ├── requirements.txt        # Python dependencies
 ├── Dockerfile              # Container configuration
 ├── .pre-commit-config.yaml # Pre-commit hooks configuration
@@ -72,7 +82,8 @@ Update an office member
 ### Prerequisites
 - Python 3.12+
 - PostgreSQL database (or access to Neon/other hosted database)
-- **For local development**: Database connection string
+- Upstash Redis database (for caching)
+- **For local development**: Database connection string and Upstash credentials
 - **For production**: Google Cloud credentials (for Secret Manager access)
 
 ### Setup
@@ -112,6 +123,21 @@ Update an office member
    - Ensure your account has access to the project
    - Secret expected:
      - `neon-database-connection-string` (connection string for production database)
+
+6. **Configure Upstash Redis (Required for caching)**
+
+   **Option A: Environment Variables (Recommended for local development)**
+   ```bash
+   export UPSTASH_REST_URL="https://your-endpoint.upstash.io"
+   export UPSTASH_REST_TOKEN="your-token-here"
+   ```
+
+   Get these values from your Upstash console under "REST API" section.
+
+   **Option B: Google Secret Manager (For production)**
+   - Secrets expected:
+     - `upstash-rest-url` (Upstash REST API endpoint URL)
+     - `upstash-rest-token` (Upstash REST API token)
 
 ### Running Locally
 
@@ -165,7 +191,10 @@ The API will be available at `http://localhost:4999`
    None needed.
 
 5. **Set up Google Secret Manager**
-   Create the required secrets in Google Secret Manager
+   Create the following secrets in Google Secret Manager:
+   - `neon-database-connection-string` - PostgreSQL connection string
+   - `upstash-rest-url` - Upstash Redis REST API endpoint
+   - `upstash-rest-token` - Upstash Redis REST API token
 
 6. **Grant Secret Manager access to Cloud Run**
     Give the service account access to the role 'roles/secretmanager.secretAccessor'
