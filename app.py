@@ -9,11 +9,13 @@ from database import (
     deactivate_office_member,
     get_active_office_members,
     get_all_duties,
+    get_most_recent_duty_by_type,
     mark_duty_completed,
     mark_duty_uncompleted,
     update_office_member,
 )
-from models import DutyCompletionPayload, OfficeMember, ReducedOfficeMember
+from models import DutyCompletionPayload, DutyType, OfficeMember, ReducedOfficeMember
+from upstash_utils import cache_recent_duty, get_cached_recent_duty, invalidate_recent_duty_cache
 
 app = Flask(__name__)
 CORS(app)
@@ -60,6 +62,9 @@ def complete_duty() -> tuple[Response, int]:
         success = mark_duty_completed(payload.duty_id, payload.duty_type)
 
         if success:
+            # Invalidate cache for this duty type
+            invalidate_recent_duty_cache(payload.duty_type)
+
             # Get updated duty list to return
             duties = get_all_duties(limit=50)
             return jsonify(
@@ -96,6 +101,9 @@ def uncomplete_duty() -> tuple[Response, int]:
         success = mark_duty_uncompleted(payload.duty_id, payload.duty_type)
 
         if success:
+            # Invalidate cache for this duty type
+            invalidate_recent_duty_cache(payload.duty_type)
+
             # Get updated duty list to return
             duties = get_all_duties(limit=50)
             return jsonify(
@@ -111,6 +119,46 @@ def uncomplete_duty() -> tuple[Response, int]:
     except Exception as e:
         logger.error(f"Error in uncomplete_duty endpoint: {e}")
         return jsonify({"error": "Failed to uncomplete duty"}), 500
+
+
+@app.route("/api/duties/recent", methods=["GET"])
+def get_recent_duty() -> tuple[Response, int]:
+    """
+    Get the most recent duty for a given duty type. Uses Redis caching to limit database requests.
+    """
+    try:
+        duty_type_param = request.args.get("duty_type")
+
+        if not duty_type_param:
+            return jsonify({"error": "duty_type query parameter is required"}), 400
+
+        try:
+            duty_type = DutyType(duty_type_param)
+        except ValueError:
+            return jsonify({"error": f"Invalid duty_type {duty_type_param}"}), 400
+
+        cached_duty_json = get_cached_recent_duty(duty_type)
+
+        # Case: we found a recent duty in the cache
+        if cached_duty_json:
+            logger.info(f"Found recent {duty_type.value} duty in cache")
+            return jsonify({"duty": cached_duty_json, "source": "cache"}), 200
+
+        # Case: we didn't find a recent duty (or it was invalid json) in the cache
+        logger.info(f"Didn't find {duty_type.value} duty in cache, fetching from database")
+        duty = get_most_recent_duty_by_type(duty_type)
+
+        if not duty:
+            return jsonify({"error": f"No {duty_type.value} duty found"}), 404
+
+        # Cache the result (1 hour TTL)
+        cache_recent_duty(duty_type, duty.model_dump(), ttl_seconds=3600)
+
+        return jsonify({"duty": duty.model_dump(), "source": "database"}), 200
+
+    except Exception as e:
+        logger.error(f"Error in get_recent_duty endpoint: {e}")
+        return jsonify({"error": "Failed to retrieve recent duty"}), 500
 
 
 @app.route("/api/members", methods=["GET"])
