@@ -284,3 +284,43 @@ def mark_duty_uncompleted(duty_id: str, duty_type: str) -> bool:
 
         logger.info(f"Marked {duty_type} duty {duty_id} as uncompleted")
         return True
+
+
+def get_most_recent_duty_by_type(duty_type: DutyType) -> DutyResponse | None:
+    """
+    Retrieve the most recent duty assignment for a given duty type.
+    """
+    with get_db_session() as session:
+        query = (
+            session.query(DutyAssignmentTable, MemberTable.username, MemberTable.full_name)  # type: ignore[call-overload]
+            .join(MemberTable, DutyAssignmentTable.member_id == MemberTable.id)
+            .filter(
+                MemberTable.active == True,
+                DutyAssignmentTable.duty_type == duty_type,
+            )
+            .order_by(desc(DutyAssignmentTable.assigned_at))
+            .first()
+        )
+
+        if not query:
+            logger.info(f"No {duty_type} duty found")
+            return None
+
+        assignment, username, full_name = query
+
+        duty_response = DutyResponse(
+            duty_id=str(assignment.id),
+            duty_type=DutyType(assignment.duty_type),
+            user_id=str(assignment.member_id),
+            username=username,
+            name=full_name or username,
+            selection_timestamp=assignment.assigned_at.isoformat(),
+            cycle_id=assignment.cycle_id,
+            completed=assignment.completed,
+            completed_timestamp=assignment.completed_at.isoformat()
+            if assignment.completed_at
+            else None,
+        )
+
+        logger.info(f"Retrieved most recent {duty_type} duty (ID: {assignment.id})")
+        return duty_response
